@@ -1,6 +1,10 @@
 package ie.wspace.whowroteit;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.content.Loader;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -11,9 +15,12 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import org.w3c.dom.Text;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-public class MainActivity extends AppCompatActivity {
+
+public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<String>{
     private EditText mBookInput;
     private TextView mTitleText;
     private TextView mAuthorText;
@@ -55,7 +62,10 @@ public class MainActivity extends AppCompatActivity {
          */
         if(networkInfo != null && networkInfo.isConnected() && queryString.length() != 0) {
             //Call the fetch book task
-            new FetchBook(mTitleText, mAuthorText).execute(queryString);
+//            new FetchBook(mTitleText, mAuthorText).execute(queryString);
+            Bundle queryBundle = new Bundle();
+            queryBundle.putString("queryString", queryString);
+            getSupportLoaderManager().restartLoader(0, queryBundle, this);
 
             //Update UI with loading indicator
             mAuthorText.setText("");
@@ -71,6 +81,94 @@ public class MainActivity extends AppCompatActivity {
                 mTitleText.setText(R.string.no_network);
             }
         }
+
+    }
+
+    /**
+     * Called when the loader in instantiated
+     * @param id
+     * @param args
+     * @return
+     */
+    @NonNull
+    @Override
+    public Loader<String> onCreateLoader(int id, @Nullable Bundle args) {
+        String queryString = "";
+
+        if(args != null) {
+            queryString = args.getString("queryString");
+        }
+
+        return new BookLoader(this, queryString);
+    }
+
+    /**
+     * Called when the loader is finished
+     * @param loader
+     * @param data
+     */
+    @Override
+    public void onLoadFinished(@NonNull Loader<String> loader, String data) {
+
+        try {
+            //Convert the response into a JSON object
+            JSONObject jsonObject = new JSONObject(data);
+            //Get the JSON array of book items
+            JSONArray itemsArray = jsonObject.getJSONArray("items");
+
+            //Initialize iterator and results fields
+            int i = 0;
+            String title = null;
+            String authors = null;
+
+            //Loop through the items array, exiting when
+            // both title and author are found,
+            // or when all items have been checked
+            while(i < itemsArray.length()
+                    && (authors == null && title == null)) {
+                //Get the current item information
+                JSONObject book = itemsArray.getJSONObject(i);
+                JSONObject volumeInfo = book.getJSONObject("volumeInfo");
+
+                //Try get the author and title from the current item,
+                // catch if either field is empty and move on
+                try {
+                    title = volumeInfo.getString("title");
+                    authors = volumeInfo.getString("authors");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                //Move to the next item
+                i++;
+            }
+
+            //If the loop found a title and author,
+            // update the UI with the new result
+            //Else, return no results string
+            if(title != null && authors != null) {
+                mTitleText.setText(title);
+                mAuthorText.setText(authors);
+            } else {
+                mTitleText.setText(R.string.no_results);
+                mAuthorText.setText("");
+            }
+
+        } catch (JSONException e) {
+            //If onPostExecute does not receive a proper JSON string,
+            // update the UI to show failed results
+            mTitleText.setText(R.string.no_results);
+            mAuthorText.setText("");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Cleans up any remaining resources
+     * @param loader
+     */
+    @Override
+    public void onLoaderReset(@NonNull Loader<String> loader) {
 
     }
 }
