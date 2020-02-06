@@ -30,9 +30,14 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mBookInput = (EditText)findViewById(R.id.bookInput);
-        mTitleText = (TextView)findViewById(R.id.titleText);
-        mAuthorText = (TextView)findViewById(R.id.authorText);
+        mBookInput = findViewById(R.id.bookInput);
+        mTitleText = findViewById(R.id.titleText);
+        mAuthorText = findViewById(R.id.authorText);
+
+        //If the loader exists, initialize it
+        if(getSupportLoaderManager().getLoader(0)!=null) {
+            getSupportLoaderManager().initLoader(0,null,this);
+        }
     }
 
     public void searchBooks(View view) {
@@ -62,7 +67,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
          */
         if(networkInfo != null && networkInfo.isConnected() && queryString.length() != 0) {
             //Call the fetch book task
-//            new FetchBook(mTitleText, mAuthorText).execute(queryString);
             Bundle queryBundle = new Bundle();
             queryBundle.putString("queryString", queryString);
             getSupportLoaderManager().restartLoader(0, queryBundle, this);
